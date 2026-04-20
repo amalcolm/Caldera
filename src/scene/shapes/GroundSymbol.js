@@ -10,7 +10,11 @@ export class GroundSymbol extends Shape {
     this.color = color;
     this.connectorBaseY = 0.10;
     this.minimumConnectorLength = minimumConnectorLength;
-    this.nodePort = this.addPort("node", [0, nodeY], { kind: "ground", signal: { voltage: 0 } });
+    this.nodePort = this.addPort("node", [0, nodeY], {
+      direction: [0, 1, 0],
+      kind: "ground",
+      signal: { voltage: 0 },
+    });
 
     this.connector = makeLine([]);
     this.add(this.connector);
@@ -32,5 +36,9 @@ export class GroundSymbol extends Shape {
 
     this.nodePort.position.y = Math.max(y, minimumNodeY);
     updateLine(this.connector, [[0, this.nodePort.position.y], [0, this.connectorBaseY]]);
+  }
+
+  evaluateVoltage() {
+    this.nodePort.voltage = 0;
   }
 }

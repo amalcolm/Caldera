@@ -1,4 +1,5 @@
 import { COMPONENT_BLUE, COMPONENT_STROKE_WIDTH, makeLine, makeLineLoop } from "../drawing.js";
+import { SUPPLY_VOLTAGE, clampVoltage, isKnownVoltage } from "../voltage.js";
 import { Shape } from "./Shape.js";
 import { TextLabel } from "./TextLabel.js";
 
@@ -12,9 +13,13 @@ export class Gain extends Shape {
     const bottomY = -0.42;
     const controlY = 0.72;
 
-    this.addPort("input", [leftX, 0], { kind: "input", signal: "audio" });
-    this.addPort("control", [0, controlY], { kind: "input", signal: "gain" });
-    this.addPort("output", [rightX, 0], { kind: "output", signal: "audio" });
+    this.inputPort = this.addPort("input", [leftX, 0], { kind: "input", signal: "audio" });
+    this.controlPort = this.addPort("control", [0, controlY], {
+      direction: [0, 1, 0],
+      kind: "input",
+      signal: "gain",
+    });
+    this.outputPort = this.addPort("output", [rightX, 0], { kind: "output", signal: "audio" });
 
     this.add(makeLineLoop([
       [leftX, topY],
@@ -36,5 +41,18 @@ export class Gain extends Shape {
       position: [0, -0.16, 0],
       width: 0.18,
     }));
+  }
+
+  evaluateVoltage() {
+    const inputVoltage = this.inputPort.voltage;
+    const controlVoltage = this.controlPort.voltage;
+
+    if (!isKnownVoltage(inputVoltage) || !isKnownVoltage(controlVoltage)) {
+      this.outputPort.voltage = null;
+      return;
+    }
+
+    const gain = 1 + (controlVoltage / SUPPLY_VOLTAGE) * 4;
+    this.outputPort.voltage = clampVoltage(inputVoltage * gain);
   }
 }

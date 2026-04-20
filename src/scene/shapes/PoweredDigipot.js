@@ -1,4 +1,5 @@
 import { COMPONENT_BLUE } from "../drawing.js";
+import { SUPPLY_VOLTAGE } from "../voltage.js";
 import { Digipot } from "./Digipot.js";
 import { GroundSymbol } from "./GroundSymbol.js";
 import { Shape } from "./Shape.js";
@@ -6,7 +7,7 @@ import { VoltageSource } from "./VoltageSource.js";
 import { STANDARD_OUTPUT_LEAD_LENGTH, Wire } from "./Wire.js";
 
 export class PoweredDigipot extends Shape {
-  constructor({ color = COMPONENT_BLUE, label = "", position = [0, 0, 0] } = {}) {
+  constructor({ color = COMPONENT_BLUE, label = "", position = [0, 0, 0], voltage = SUPPLY_VOLTAGE } = {}) {
     super({ name: "PoweredDigipot", position });
 
     this.supply = new VoltageSource({
@@ -14,6 +15,7 @@ export class PoweredDigipot extends Shape {
       label: "3.3 V",
       outputDirection: [-1, 0, 0],
       position: [-0.18, 1.28, 0],
+      voltage,
     });
     this.ground = new GroundSymbol({ color, position: [-0.18, -1.55, 0] });
     this.digipot = new Digipot({ color, label });
@@ -41,5 +43,13 @@ export class PoweredDigipot extends Shape {
 
   update() {
     this.internalWires.forEach((wire) => wire.update());
+  }
+
+  evaluateVoltage() {
+    this.supply.evaluateVoltage();
+    this.ground.evaluateVoltage();
+    this.internalWires[0].setVoltage(this.supply.port("output").voltage);
+    this.internalWires[1].setVoltage(this.ground.port("node").voltage);
+    this.digipot.evaluateVoltage();
   }
 }

@@ -2,7 +2,7 @@ import { COMPONENT_BLUE, COMPONENT_STROKE_WIDTH, makeFilledPolygon, makeLine } f
 import { Shape } from "./Shape.js";
 
 export class PhotoDiode extends Shape {
-  constructor({ color = COMPONENT_BLUE, position = [0, 0, 0] } = {}) {
+  constructor({ color = COMPONENT_BLUE, position = [0, 0, 0], voltage = 1.65 } = {}) {
     super({ name: "PhotoDiode", position });
 
     const leftTerminalX = -0.62;
@@ -11,7 +11,12 @@ export class PhotoDiode extends Shape {
     const diodeRightX = 0.18;
     const diodeHalfHeight = 0.25;
 
-    this.addPort("output", [rightTerminalX, 0], { kind: "output", signal: "light" });
+    this.outputVoltage = voltage;
+    this.outputPort = this.addPort("output", [rightTerminalX, 0], {
+      kind: "output",
+      signal: "light",
+      voltage,
+    });
 
     this.add(makeLine([[leftTerminalX, 0], [diodeLeftX, 0]], { color, width: COMPONENT_STROKE_WIDTH }));
     this.add(makeLine([[diodeRightX, 0], [rightTerminalX, 0]], { color, width: COMPONENT_STROKE_WIDTH }));
@@ -27,6 +32,10 @@ export class PhotoDiode extends Shape {
 
     this.addLightArrow(-0.52, 0.55, -0.2, 0.25, color);
     this.addLightArrow(-0.25, 0.62, 0.05, 0.32, color);
+  }
+
+  evaluateVoltage() {
+    this.outputPort.voltage = this.outputVoltage;
   }
 
   addLightArrow(startX, startY, endX, endY, color) {

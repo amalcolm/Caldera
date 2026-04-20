@@ -1,4 +1,5 @@
 import { COMPONENT_BLUE, COMPONENT_STROKE_WIDTH, makeFilledPolygon, makeLineLoop } from "../drawing.js";
+import { isKnownVoltage } from "../voltage.js";
 import { Shape } from "./Shape.js";
 import { TextLabel } from "./TextLabel.js";
 
@@ -26,8 +27,8 @@ export class Digipot extends Shape {
     this.wiperY = 0;
     this.value = 0;
 
-    this.addPort("topInput", [bodyLeft, topInputY], { kind: "input", signal: { voltage: 3.3 } });
-    this.addPort("bottomInput", [bodyLeft, bottomInputY], { kind: "input", signal: { voltage: 0 } });
+    this.topInputPort = this.addPort("topInput", [bodyLeft, topInputY], { kind: "input" });
+    this.bottomInputPort = this.addPort("bottomInput", [bodyLeft, bottomInputY], { kind: "input" });
     this.wiperPort = this.addPort("wiper", [wiperTipX, this.wiperY], { kind: "output" });
 
     this.add(makeLineLoop([
@@ -121,6 +122,19 @@ export class Digipot extends Shape {
     const normalised = clamp(Math.round(value), 0, 255) / 255;
 
     return this.bodyBottom + normalised * (this.bodyTop - this.bodyBottom);
+  }
+
+  evaluateVoltage() {
+    const topVoltage = this.topInputPort.voltage;
+    const bottomVoltage = this.bottomInputPort.voltage;
+
+    if (!isKnownVoltage(topVoltage) || !isKnownVoltage(bottomVoltage)) {
+      this.wiperPort.voltage = null;
+      return;
+    }
+
+    const travel = this.value / 255;
+    this.wiperPort.voltage = bottomVoltage + (topVoltage - bottomVoltage) * travel;
   }
 }
 

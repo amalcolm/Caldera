@@ -1,11 +1,17 @@
 import * as THREE from "three";
 
 export class ConnectionPort {
-  constructor(owner, name, position, { direction = [1, 0, 0], kind = "passive", signal = null } = {}) {
+  constructor(owner, name, position, {
+    direction = [1, 0, 0],
+    kind = "passive",
+    signal = null,
+    voltage = signal?.voltage ?? null,
+  } = {}) {
     this.owner = owner;
     this.name = name;
     this.kind = kind;
     this.signal = signal;
+    this.voltage = voltage;
     this.position = toVector3(position);
     this.direction = toVector3(direction).normalize();
   }
