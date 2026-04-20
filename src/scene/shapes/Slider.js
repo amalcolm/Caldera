@@ -8,6 +8,7 @@ export class Slider extends Shape {
     color = COMPONENT_BLUE,
     label = "",
     leftValue = 0,
+    outputOffset = 0,
     position = [0, 0, 0],
     rightValue = 1,
     value = 128,
@@ -26,6 +27,7 @@ export class Slider extends Shape {
     this.bodyLeft = bodyLeft;
     this.bodyRight = bodyRight;
     this.leftValue = leftValue;
+    this.outputOffset = outputOffset;
     this.rightValue = rightValue;
     this.wiperHalfWidth = wiperHalfWidth;
     this.wiperTopY = wiperTopY;
@@ -77,7 +79,7 @@ export class Slider extends Shape {
       width: 0.22,
     }));
 
-    this.wiperValueLabel = new TextLabel(formatSliderValue(this.getOutputValue()), {
+    this.wiperValueLabel = new TextLabel(formatSliderValue(this.getSliderValue()), {
       color: "#ffffff",
       height: 0.23,
       position: [0, -0.03, 0.01],
@@ -128,14 +130,19 @@ export class Slider extends Shape {
 
   updateWiper() {
     const outputValue = this.getOutputValue();
+    const sliderValue = this.getSliderValue();
 
     this.wiper.position.x = this.wiperX;
     this.outputPort.position.x = this.wiperX;
     this.outputPort.voltage = outputValue;
-    this.wiperValueLabel.setText(formatSliderValue(outputValue));
+    this.wiperValueLabel.setText(formatSliderValue(sliderValue));
   }
 
   getOutputValue() {
+    return this.getSliderValue() + this.outputOffset;
+  }
+
+  getSliderValue() {
     const travel = this.value / 255;
     return this.leftValue + (this.rightValue - this.leftValue) * travel;
   }

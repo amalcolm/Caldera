@@ -7,10 +7,12 @@ import { PhotoDiode } from "./shapes/PhotoDiode.js";
 import { PoweredDigipot } from "./shapes/PoweredDigipot.js";
 import { Slider, formatMultiplier } from "./shapes/Slider.js";
 import { Wire } from "./shapes/Wire.js";
+import { clampVoltage } from "./voltage.js";
 
 export class CircuitScene {
-  constructor(mount) {
+  constructor(mount, { onSettingsChange = null } = {}) {
     this.mount = mount;
+    this.onSettingsChange = onSettingsChange;
     this.scene = new THREE.Scene();
     this.camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 100);
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -21,6 +23,8 @@ export class CircuitScene {
     this.worldPointer = new THREE.Vector3();
     this.shapes = [];
     this.dragControls = [];
+    this.controlById = new Map();
+    this.photoDiode = null;
     this.wires = [];
     this.dragTarget = null;
     this.dragOffsetY = 0;
@@ -163,6 +167,7 @@ export class CircuitScene {
     this.renderer.domElement.style.cursor = "default";
     window.removeEventListener("mousemove", this.handleDragMove);
     this.render();
+    this.notifySettingsChange();
   }
 
   getWorldPoint(event) {
@@ -178,6 +183,63 @@ export class CircuitScene {
 
   findDragControlAt(worldPoint) {
     return this.dragControls.find((control) => control.containsWiperPoint(worldPoint));
+  }
+
+  getSettings() {
+    return {
+      photodiodeVoltage: this.getPhotoDiodeVoltage(),
+      wipers: Object.fromEntries(
+        Array.from(this.controlById, ([id, control]) => [id, control.value]),
+      ),
+    };
+  }
+
+  applySettings(settings) {
+    if (!settings) {
+      return;
+    }
+
+    const wipers = settings.wipers ?? {};
+
+    this.controlById.forEach((control, id) => {
+      const value = Number(wipers[id]);
+
+      if (Number.isFinite(value)) {
+        control.setWiperValue(value);
+      }
+    });
+
+    if (settings.photodiodeVoltage !== undefined) {
+      this.setPhotoDiodeVoltage(settings.photodiodeVoltage, { notify: false, render: false });
+    }
+  }
+
+  getPhotoDiodeVoltage() {
+    return this.photoDiode?.outputVoltage ?? null;
+  }
+
+  setPhotoDiodeVoltage(voltage, { notify = true, render = true } = {}) {
+    const clampedVoltage = clampVoltage(Number(voltage));
+
+    if (clampedVoltage === null || !this.photoDiode?.setOutputVoltage(clampedVoltage)) {
+      return false;
+    }
+
+    this.c3Pot?.setInputSignalVoltage(clampedVoltage);
+
+    if (render) {
+      this.render();
+    }
+
+    if (notify) {
+      this.notifySettingsChange();
+    }
+
+    return true;
+  }
+
+  notifySettingsChange() {
+    this.onSettingsChange?.(this.getSettings());
   }
 
   resize() {
@@ -223,6 +285,7 @@ export class CircuitScene {
 
   setupCircuit() {
     const photoDiode = this.add(new PhotoDiode({ position: [-3.8, 4.2, 0] }));
+    this.photoDiode = photoDiode;
 
     const topPot = this.add(new PoweredDigipot({ label: "top", position: [-3.8,  2.1, 0] }));
     const botPot = this.add(new PoweredDigipot({ label: "bot", position: [-3.8, -2.1, 0] }));
@@ -234,7 +297,6 @@ export class CircuitScene {
       topDigipot: topPot.digipot,
     });
     this.c3Pot.begin();
-    this.dragControls = [topPot.digipot, botPot.digipot, midPot];
     
     const differentialAmp1 = this.add(new DifferentialAmp({ multiplier: 200, position: [-0.6, 0.605, 0] }));
 
@@ -247,12 +309,20 @@ export class CircuitScene {
     const ampMultiplierSlider = this.add(new Slider({
       label: "gain",
       leftValue: 0,
+      outputOffset: 1,
       position: [2.4, 1.9, 0],
       rightValue: 255,
       value: 128,
     }));
 
-    this.dragControls.push(offsetPot.digipot, ampMultiplierSlider);
+    this.controlById = new Map([
+      ["top", topPot.digipot],
+      ["bot", botPot.digipot],
+      ["mid", midPot],
+      ["offset", offsetPot.digipot],
+      ["gain", ampMultiplierSlider],
+    ]);
+    this.dragControls = Array.from(this.controlById.values());
 
     this.add(new Wire({ from: topPot.port("output"), to: midPot.port("topInput") }));
     this.add(new Wire({ from: botPot.port("output"), to: midPot.port("bottomInput") }));
@@ -265,6 +335,7 @@ export class CircuitScene {
       to: differentialAmp2.port("multiplier"),
     }));
     this.add(new Wire({ from: offsetPot.port("output"), to: differentialAmp2.port("nonInverting") }));
+    this.add(new Wire({ from: differentialAmp2.port("output"), to: [4.5, 0, 0] }));
   }
 
   alignGroundNode(ground, port) {

@@ -1,4 +1,5 @@
 import { COMPONENT_BLUE, COMPONENT_STROKE_WIDTH, makeFilledPolygon, makeLine } from "../drawing.js";
+import { isKnownVoltage } from "../voltage.js";
 import { Shape } from "./Shape.js";
 
 export class PhotoDiode extends Shape {
@@ -36,6 +37,16 @@ export class PhotoDiode extends Shape {
 
   evaluateVoltage() {
     this.outputPort.voltage = this.outputVoltage;
+  }
+
+  setOutputVoltage(voltage) {
+    if (!isKnownVoltage(voltage)) {
+      return false;
+    }
+
+    this.outputVoltage = voltage;
+    this.outputPort.voltage = voltage;
+    return true;
   }
 
   addLightArrow(startX, startY, endX, endY, color) {
