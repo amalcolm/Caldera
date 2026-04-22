@@ -11,7 +11,9 @@ export class Wire extends Shape {
     from,
     formatValue = formatVoltage,
     name = "Wire",
+    propagateVoltage = true,
     route = null,
+    singleVoltageLabel = "auto",
     to,
     voltage = null,
     waypoints = [],
@@ -20,7 +22,9 @@ export class Wire extends Shape {
 
     this.formatValue = formatValue;
     this.from = from;
+    this.propagateVoltage = propagateVoltage;
     this.route = route;
+    this.singleVoltageLabel = singleVoltageLabel;
     this.to = to;
     this.voltage = null;
     this.waypoints = waypoints;
@@ -53,11 +57,11 @@ export class Wire extends Shape {
   setVoltage(voltage) {
     this.voltage = isKnownVoltage(voltage) ? voltage : null;
 
-    if (this.from?.voltage !== undefined) {
+    if (this.propagateVoltage && this.from?.voltage !== undefined) {
       this.from.voltage = this.voltage;
     }
 
-    if (this.to?.voltage !== undefined) {
+    if (this.propagateVoltage && this.to?.voltage !== undefined) {
       this.to.voltage = this.voltage;
     }
 
@@ -119,15 +123,25 @@ export class Wire extends Shape {
       this.getVoltageLabelPosition(this.to, routePoints.at(-1), routePoints.at(-2)),
     );
 
+    const sameY = Math.abs(this.startVoltageLabel.position.y - this.endVoltageLabel.position.y) < 0.02;
+    const sameX = Math.abs(this.startVoltageLabel.position.x - this.endVoltageLabel.position.x) < 0.02;
 
-    if (Math.abs(this.startVoltageLabel.position.y - this.endVoltageLabel.position.y) < 0.02) {
-      this.endVoltageLabel.position.y = 999;
-      this.startVoltageLabel.position.x = (routePoints[0].x + routePoints.at(-1).x) / 2;
+    if (sameY && !sameX) {
+      if (this.singleVoltageLabel === "end") {
+        this.startVoltageLabel.position.set(999, 999, 999);
+      } else {
+        this.endVoltageLabel.position.set(999, 999, 999);
+        this.startVoltageLabel.position.x = (routePoints[0].x + routePoints.at(-1).x) / 2;
+      }
     }
 
-    if (Math.abs(this.startVoltageLabel.position.x - this.endVoltageLabel.position.x) < 0.02) {
-      this.endVoltageLabel.position.x = 999;
-      this.startVoltageLabel.position.y = (routePoints[0].y + routePoints.at(-1).y) / 2;
+    if (sameX && !sameY) {
+      if (this.singleVoltageLabel === "start") {
+        this.endVoltageLabel.position.set(999, 999, 999);
+      } else {
+        this.startVoltageLabel.position.set(999, 999, 999);
+        this.endVoltageLabel.position.y = Math.min(routePoints[0].y, routePoints.at(-1).y) + 0.05;
+      }
     }
   }
 

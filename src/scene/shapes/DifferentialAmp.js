@@ -1,14 +1,20 @@
 import { COMPONENT_BLUE, COMPONENT_STROKE_WIDTH, makeLine, makeLineLoop } from "../drawing.js";
 import { clampVoltage, isKnownVoltage } from "../voltage.js";
+import { RESISTOR_LEAD_HALF_WIDTH, Resistor } from "./Resistor.js";
 import { Shape } from "./Shape.js";
+import { Slider, formatSliderValue } from "./Slider.js";
 import { TextLabel } from "./TextLabel.js";
+import { VariableResistor } from "./VariableResistor.js";
+import { STANDARD_OUTPUT_LEAD_LENGTH, Wire } from "./Wire.js";
 
 export class DifferentialAmp extends Shape {
   constructor({
     color = COMPONENT_BLUE,
+    feedbackResistance = "10.0K",
     hasMultiplierInput = false,
     multiplier = 1,
     position = [0, 0, 0],
+    sourceResistance = "1.0K",
   } = {}) {
     super({ name: "DifferentialAmp", position });
 
@@ -22,12 +28,27 @@ export class DifferentialAmp extends Shape {
     const multiplierInputX = 0;
     const multiplierInputStartY = height / 4;
     const multiplierInputEndY = height / 2 + 0.16;
+    const leadLength = STANDARD_OUTPUT_LEAD_LENGTH;
+    const rightLeadLength = leadLength * 2;
+    const sourceResistorX = leftX - leadLength * 2 - RESISTOR_LEAD_HALF_WIDTH;
+    const feedbackResistorX = leftX + leadLength*2;
+    const variableResistorX = rightX + rightLeadLength - RESISTOR_LEAD_HALF_WIDTH;
+    const variableResistorY = height / 2 + 0.78;
+    const feedbackSliderY = variableResistorY + 1.36;
+    const verticalThenHorizontalRoute = ({ end, start }) => [start, [start.x, end.y, 0], end];
+    const horizontalThenVerticalRoute = ({ end, start }) => [start, [end.x, start.y, 0], end];
 
     this.hasMultiplierInput = hasMultiplierInput;
     this.multiplier = multiplier;
-    this.invertingPort = this.addPort("inverting", [leftX, inputY], { kind: "input", signal: "negative" });
-    this.nonInvertingPort = this.addPort("nonInverting", [leftX, -inputY], { kind: "input", signal: "positive" });
-    this.outputPort = this.addPort("output", [rightX, 0], { kind: "output" });
+    this.opAmpInvertingPort = this.addPort("opAmpInverting", [leftX - leadLength, inputY], {
+      kind: "input",
+      signal: "negative",
+    });
+    this.nonInvertingPort = this.addPort("nonInverting", [leftX - leadLength, -inputY], {
+      kind: "input",
+      signal: "positive",
+    });
+    this.outputPort = this.addPort("output", [rightX + rightLeadLength, 0], { kind: "output" });
     this.multiplierInputPort = hasMultiplierInput
       ? this.addPort("multiplier", [multiplierInputX, multiplierInputEndY], {
         direction: [0, 1, 0],
@@ -35,8 +56,72 @@ export class DifferentialAmp extends Shape {
         signal: "multiplier",
       })
       : null;
+    this.sourceResistor = new Resistor({
+      color,
+      position: [sourceResistorX, inputY, 0],
+      value: sourceResistance,
+    });
+    this.feedbackResistor = new Resistor({
+      color,
+      inputSide: "right",
+      position: [feedbackResistorX, variableResistorY, 0],
+      value: "1K2",
+    });
+    this.variableResistor = new VariableResistor({
+      color,
+      inputSide: "right",
+      position: [variableResistorX, variableResistorY, 0],
+      value: feedbackResistance,
+    });
+    this.feedbackSlider = new Slider({
+      color,
+      label: "gain",
+      leftValue: 0,
+      position: [variableResistorX, feedbackSliderY, 0],
+      rightValue: 255,
+      signal: "wiper",
+      value: 255,
+      wiperHalfWidth: 0.14,
+    });
+    this.feedbackOutputWire = new Wire({
+      from: this.outputPort,
+      route: verticalThenHorizontalRoute,
+      to: this.variableResistor.port("input"),
+    });
+    this.feedbackControlWire = new Wire({
+      formatValue: formatSliderValue,
+      from: this.feedbackSlider.port("output"),
+      route: verticalThenHorizontalRoute,
+      to: this.variableResistor.port("topInput"),
+    });
+    this.feedbackReturnWire = new Wire({
+      from: this.feedbackResistor.port("output"),
+      propagateVoltage: false,
+      route: horizontalThenVerticalRoute,
+      to: this.opAmpInvertingPort,
+    });
+    this.feedbackJoinWire = new Wire({
+      from: this.feedbackResistor.port("input"),
+      propagateVoltage: false,
+      to: this.variableResistor.port("output"),
+    });
+    this.internalWires = [
+      this.feedbackOutputWire,
+      this.feedbackControlWire,
+      this.feedbackReturnWire,
+      this.feedbackJoinWire,
+    ];
+    this.invertingPort = this.sourceResistor.port("input");
+    this.ports.set("inverting", this.invertingPort);
 
-    this.add(makeLineLoop([[leftX, height/2.0], [rightX, 0], [leftX, -height/2.0]], { color, width: COMPONENT_STROKE_WIDTH }));
+    this.add(makeLineLoop([[leftX, height / 2.0], [rightX, 0], [leftX, -height / 2.0]], {
+      color,
+      width: COMPONENT_STROKE_WIDTH,
+    }));
+    this.add(makeLine([[leftX - leadLength, inputY], [leftX, inputY]], { color, width: COMPONENT_STROKE_WIDTH }));
+    this.add(makeLine([[leftX - leadLength, -inputY], [leftX, -inputY]], { color, width: COMPONENT_STROKE_WIDTH }));
+    this.add(makeLine([[rightX, 0], [rightX + rightLeadLength, 0]], { color, width: COMPONENT_STROKE_WIDTH }));
+    this.add(makeLine([[sourceResistorX + RESISTOR_LEAD_HALF_WIDTH, inputY], [leftX - leadLength, inputY]], { color, width: COMPONENT_STROKE_WIDTH }));
     this.addPlusSign(signX, -inputY, color);
     this.addMinusSign(signX, inputY, color);
     if (hasMultiplierInput) {
@@ -45,13 +130,21 @@ export class DifferentialAmp extends Shape {
         [multiplierInputX, multiplierInputEndY],
       ], { color, width: COMPONENT_STROKE_WIDTH }));
     }
-    this.multiplierLabel = new TextLabel(this.formatMultiplierLabel(multiplier), {
+    this.multiplierLabel = new TextLabel(this.formatMultiplierLabel(this.getEffectiveMultiplier(1)), {
       color,
       height: 0.18,
       position: [0.02, 0, 0],
       width: 0.48,
     });
-    this.add(this.multiplierLabel);
+    this.add(
+      this.sourceResistor,
+      this.feedbackResistor,
+      this.variableResistor,
+      this.feedbackSlider,
+      ...this.internalWires,
+      this.multiplierLabel,
+    );
+    this.updateMultiplierLabel(1);
   }
 
   addPlusSign(x, y, color) {
@@ -67,34 +160,124 @@ export class DifferentialAmp extends Shape {
     this.add(makeLine([[x - size, y], [x + size, y]], { color, width: COMPONENT_STROKE_WIDTH }));
   }
 
-  evaluateVoltage() {
-    const nonInvertingVoltage = this.nonInvertingPort.voltage;
-    const invertingVoltage = this.invertingPort.voltage;
-    const secondaryMultiplier = this.multiplierInputPort?.voltage ?? 1;
+  update() {
+    this.internalWires.forEach((wire) => wire.update());
+  }
 
+  evaluateVoltage() {
+    this.updateVariableResistance();
+
+    const nonInvertingVoltage = this.nonInvertingPort.voltage;
+    const sourceVoltage = this.sourceResistor.port("input").voltage;
+    const secondaryMultiplier = this.multiplierInputPort?.voltage ?? 1;
+    const effectiveMultiplier = this.getEffectiveMultiplier(secondaryMultiplier);
+
+    this.setSummingNodeVoltage(nonInvertingVoltage);
     this.updateMultiplierLabel(secondaryMultiplier);
 
     if (
       !isKnownVoltage(nonInvertingVoltage)
-      || !isKnownVoltage(invertingVoltage)
-      || !isKnownVoltage(secondaryMultiplier)
+      || !isKnownVoltage(sourceVoltage)
+      || !isKnownVoltage(effectiveMultiplier)
     ) {
       this.outputPort.voltage = null;
+      this.updateFeedbackVoltage();
       return;
     }
 
     this.outputPort.voltage = clampVoltage(
-      (nonInvertingVoltage - invertingVoltage) * this.multiplier * secondaryMultiplier,
+      nonInvertingVoltage + (nonInvertingVoltage - sourceVoltage) * effectiveMultiplier,
     );
+    this.updateFeedbackVoltage();
+  }
+
+  setSummingNodeVoltage(voltage) {
+    this.sourceResistor.port("output").voltage = voltage;
+    this.opAmpInvertingPort.voltage = voltage;
+    this.feedbackResistor.port("output").voltage = voltage;
+  }
+
+  updateVariableResistance() {
+    this.feedbackSlider.evaluateVoltage();
+    this.feedbackControlWire.setVoltage(this.feedbackSlider.port("output").voltage);
+    this.variableResistor.updateResistanceFromControl();
+  }
+
+  updateFeedbackVoltage() {
+    this.feedbackOutputWire.setVoltage(this.outputPort.voltage);
+
+    const summingNodeVoltage = this.opAmpInvertingPort.voltage;
+    const feedbackJoinVoltage = this.getFeedbackJoinVoltage();
+
+    this.feedbackReturnWire.setVoltage(summingNodeVoltage);
+    this.variableResistor.port("output").voltage = feedbackJoinVoltage;
+    this.feedbackResistor.port("input").voltage = feedbackJoinVoltage;
+    this.feedbackJoinWire.setVoltage(feedbackJoinVoltage);
+  }
+
+  getFeedbackJoinVoltage() {
+    const outputVoltage = this.outputPort.voltage;
+    const summingNodeVoltage = this.opAmpInvertingPort.voltage;
+    const variableFeedbackResistance = this.variableResistor.ohms;
+    const fixedFeedbackResistance = this.feedbackResistor.ohms;
+    const feedbackResistance = this.getFeedbackResistance();
+
+    if (
+      !isKnownVoltage(outputVoltage)
+      || !isKnownVoltage(summingNodeVoltage)
+      || !Number.isFinite(variableFeedbackResistance)
+      || !Number.isFinite(fixedFeedbackResistance)
+      || !Number.isFinite(feedbackResistance)
+      || feedbackResistance === 0
+    ) {
+      return null;
+    }
+
+    return outputVoltage
+      + (summingNodeVoltage - outputVoltage) * (variableFeedbackResistance / feedbackResistance);
   }
 
   updateMultiplierLabel(secondaryMultiplier) {
-    if (!isKnownVoltage(secondaryMultiplier)) {
+    const effectiveMultiplier = this.getEffectiveMultiplier(secondaryMultiplier);
+
+    if (!isKnownVoltage(effectiveMultiplier)) {
       this.multiplierLabel.setText("x?");
       return;
     }
 
-    this.multiplierLabel.setText(this.formatMultiplierLabel(this.multiplier * secondaryMultiplier));
+    this.multiplierLabel.setText(this.formatMultiplierLabel(effectiveMultiplier));
+  }
+
+  getEffectiveMultiplier(secondaryMultiplier) {
+    const resistanceMultiplier = this.getResistanceMultiplier();
+
+    if (!isKnownVoltage(resistanceMultiplier) || !isKnownVoltage(secondaryMultiplier)) {
+      return null;
+    }
+
+    return resistanceMultiplier * this.multiplier * secondaryMultiplier;
+  }
+
+  getResistanceMultiplier() {
+    const sourceResistance = this.sourceResistor.ohms;
+    const feedbackResistance = this.getFeedbackResistance();
+
+    if (!Number.isFinite(sourceResistance) || sourceResistance === 0 || !Number.isFinite(feedbackResistance)) {
+      return null;
+    }
+
+    return feedbackResistance / sourceResistance;
+  }
+
+  getFeedbackResistance() {
+    const fixedFeedbackResistance = this.feedbackResistor.ohms;
+    const variableFeedbackResistance = this.variableResistor.ohms;
+
+    if (!Number.isFinite(fixedFeedbackResistance) || !Number.isFinite(variableFeedbackResistance)) {
+      return null;
+    }
+
+    return fixedFeedbackResistance + variableFeedbackResistance;
   }
 
   formatMultiplierLabel(value) {
@@ -102,6 +285,10 @@ export class DifferentialAmp extends Shape {
       return "x?";
     }
 
-    return this.hasMultiplierInput ? `x${value.toFixed(2)}` : `x${value}`;
+    const formattedValue = Number.isInteger(value)
+      ? value.toFixed(0)
+      : value.toFixed(2).replace(/\.?0+$/, "");
+
+    return `x${formattedValue}`;
   }
 }

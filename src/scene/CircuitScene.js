@@ -1,11 +1,12 @@
 import * as THREE from "three";
 import { C3Pot } from "../model/C3Pot.js";
-import { Digipot } from "./shapes/Digipot.js";
 import { Gain } from "./shapes/Gain.js";
 import { DifferentialAmp } from "./shapes/DifferentialAmp.js";
+import { TIA } from "./shapes/TIA.js";
 import { PhotoDiode } from "./shapes/PhotoDiode.js";
 import { PoweredDigipot } from "./shapes/PoweredDigipot.js";
 import { Slider, formatMultiplier } from "./shapes/Slider.js";
+import { ThreePot } from "./shapes/ThreePot.js";
 import { Wire } from "./shapes/Wire.js";
 import { clampVoltage } from "./voltage.js";
 
@@ -246,9 +247,9 @@ export class CircuitScene {
     const width = Math.max(this.mount.clientWidth, 1);
     const height = Math.max(this.mount.clientHeight, 1);
     const aspect = width / height;
-    const minimumViewHeight = 7.2;
+    const minimumViewHeight = 10.2;
 
-    let viewWidth = 10.2;
+    let viewWidth = 14.2;
     let viewHeight = viewWidth / aspect;
 
     if (viewHeight < minimumViewHeight) {
@@ -284,29 +285,28 @@ export class CircuitScene {
   }
 
   setupCircuit() {
-    const photoDiode = this.add(new PhotoDiode({ position: [-3.8, 4.2, 0] }));
+    const photoDiode = this.add(new PhotoDiode({ position: [-4.8, 5.2, 0] }));
     this.photoDiode = photoDiode;
 
-    const topPot = this.add(new PoweredDigipot({ label: "top", position: [-3.8,  2.1, 0] }));
-    const botPot = this.add(new PoweredDigipot({ label: "bot", position: [-3.8, -2.1, 0] }));
-    const midPot = this.add(new        Digipot({ label: "mid", position: [-2.4,  0.0, 0] }));
+    const threePot = this.add(new ThreePot({ position: [-4.8, -1.0, 0] }));
     this.c3Pot = new C3Pot({
-      botDigipot: botPot.digipot,
+      botDigipot: threePot.botDigipot,
       inputSignalVoltage: photoDiode.outputVoltage,
-      midDigipot: midPot,
-      topDigipot: topPot.digipot,
+      midDigipot: threePot.midDigipot,
+      topDigipot: threePot.topDigipot,
     });
     this.c3Pot.begin();
     
-    const differentialAmp1 = this.add(new DifferentialAmp({ multiplier: 200, position: [-0.6, 0.605, 0] }));
+    const tia = this.add(new TIA({ multiplier: 200, position: [-1.6, 0.605, 0] }));
 
     const offsetPot = this.add(new PoweredDigipot({ label: "offset", position: [0.5, -2.1, 0] }));
-    const differentialAmp2 = this.add(new DifferentialAmp({
-      hasMultiplierInput: true,
+    const differentialAmp = this.add(new DifferentialAmp({
+      feedbackResistance: "10.0K",
       multiplier: 1,
-      position: [2.4, 0.0, 0],
+      position: [3.0, 0.0, 0],
+      sourceResistance: "1.0K",
     }));
-    const ampMultiplierSlider = this.add(new Slider({
+/*  const ampMultiplierSlider = this.add(new Slider({
       label: "gain",
       leftValue: 0,
       outputOffset: 1,
@@ -314,28 +314,26 @@ export class CircuitScene {
       rightValue: 255,
       value: 128,
     }));
-
+*/
     this.controlById = new Map([
-      ["top", topPot.digipot],
-      ["bot", botPot.digipot],
-      ["mid", midPot],
+      ["top", threePot.topDigipot],
+      ["bot", threePot.botDigipot],
+      ["mid", threePot.midDigipot],
       ["offset", offsetPot.digipot],
-      ["gain", ampMultiplierSlider],
+      ["feedback", differentialAmp.feedbackSlider],
+//      ["gain", ampMultiplierSlider],
     ]);
     this.dragControls = Array.from(this.controlById.values());
 
-    this.add(new Wire({ from: topPot.port("output"), to: midPot.port("topInput") }));
-    this.add(new Wire({ from: botPot.port("output"), to: midPot.port("bottomInput") }));
-    this.add(new Wire({ from: midPot.port("wiper"), to: differentialAmp1.port("nonInverting") }));
-    this.add(new Wire({ from: photoDiode.port("output"), to: differentialAmp1.port("inverting") }));
-    this.add(new Wire({ from: differentialAmp1.port("output"), to: differentialAmp2.port("inverting") }));
+    this.add(new Wire({ from: threePot.port("output"), to: tia.port("nonInverting") }));
+    this.add(new Wire({ from: photoDiode.port("output"), to: tia.port("inverting") }));
     this.add(new Wire({
-      formatValue: formatMultiplier,
-      from: ampMultiplierSlider.port("output"),
-      to: differentialAmp2.port("multiplier"),
+      from: tia.port("output"),
+      singleVoltageLabel: "end",
+      to: differentialAmp.port("inverting"),
     }));
-    this.add(new Wire({ from: offsetPot.port("output"), to: differentialAmp2.port("nonInverting") }));
-    this.add(new Wire({ from: differentialAmp2.port("output"), to: [4.5, 0, 0] }));
+//  this.add(new Wire({ from: ampMultiplierSlider.port("output"), to: differentialAmp.port("multiplier"), formatValue: formatMultiplier    }));
+    this.add(new Wire({ from: offsetPot.port("output"), to: differentialAmp.port("nonInverting") }));
   }
 
   alignGroundNode(ground, port) {

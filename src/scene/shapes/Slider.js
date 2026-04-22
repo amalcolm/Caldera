@@ -6,12 +6,15 @@ import { TextLabel } from "./TextLabel.js";
 export class Slider extends Shape {
   constructor({
     color = COMPONENT_BLUE,
+    formatValue = formatSliderValue,
     label = "",
     leftValue = 0,
     outputOffset = 0,
     position = [0, 0, 0],
     rightValue = 1,
+    signal = "multiplier",
     value = 128,
+    wiperHalfWidth = 0.11,
   } = {}) {
     super({ name: "Slider", position });
 
@@ -22,10 +25,9 @@ export class Slider extends Shape {
     const wiperTopY = bodyTop + 0.08;
     const wiperShoulderY = bodyBottom - 0.06;
     const wiperTipY = bodyBottom - 0.26;
-    const wiperHalfWidth = 0.11;
-
     this.bodyLeft = bodyLeft;
     this.bodyRight = bodyRight;
+    this.formatValue = formatValue;
     this.leftValue = leftValue;
     this.outputOffset = outputOffset;
     this.rightValue = rightValue;
@@ -38,7 +40,7 @@ export class Slider extends Shape {
     this.outputPort = this.addPort("output", [this.wiperX, wiperTipY], {
       direction: [0, -1, 0],
       kind: "output",
-      signal: "multiplier",
+      signal,
     });
 
     this.add(makeLineLoop([
@@ -66,20 +68,20 @@ export class Slider extends Shape {
       }));
     }
 
-    this.add(new TextLabel(formatSliderValue(leftValue), {
+    this.add(new TextLabel(this.formatValue(leftValue), {
       color,
       height: 0.23,
       position: [bodyLeft, bodyTop + 0.1, 0],
-      width: 0.22,
+      width: 0.42,
     }));
-    this.add(new TextLabel(formatSliderValue(rightValue), {
+    this.add(new TextLabel(this.formatValue(rightValue), {
       color,
       height: 0.23,
       position: [bodyRight, bodyTop + 0.1, 0],
-      width: 0.22,
+      width: 0.42,
     }));
 
-    this.wiperValueLabel = new TextLabel(formatSliderValue(this.getSliderValue()), {
+    this.wiperValueLabel = new TextLabel(this.formatValue(this.getSliderValue()), {
       color: "#ffffff",
       height: 0.23,
       position: [0, -0.03, 0.01],
@@ -135,7 +137,7 @@ export class Slider extends Shape {
     this.wiper.position.x = this.wiperX;
     this.outputPort.position.x = this.wiperX;
     this.outputPort.voltage = outputValue;
-    this.wiperValueLabel.setText(formatSliderValue(sliderValue));
+    this.wiperValueLabel.setText(this.formatValue(sliderValue));
   }
 
   getOutputValue() {
