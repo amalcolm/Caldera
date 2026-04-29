@@ -5,11 +5,13 @@ import { Shape } from "./Shape.js";
 import { TextLabel } from "./TextLabel.js";
 
 export const STANDARD_OUTPUT_LEAD_LENGTH = 0.28;
+const VOLTAGE_LABEL_WIDTH = 0.384;
 
 export class Wire extends Shape {
   constructor({
     from,
     formatValue = formatVoltage,
+    hideVoltageLabel = false,
     name = "Wire",
     propagateVoltage = true,
     route = null,
@@ -22,6 +24,7 @@ export class Wire extends Shape {
 
     this.formatValue = formatValue;
     this.from = from;
+    this.hideVoltageLabel = hideVoltageLabel;
     this.propagateVoltage = propagateVoltage;
     this.route = route;
     this.singleVoltageLabel = singleVoltageLabel;
@@ -33,16 +36,17 @@ export class Wire extends Shape {
       color: INK,
       height: 0.12,
       renderOrder: 4,
-      width: 0.32,
+      width: VOLTAGE_LABEL_WIDTH,
     });
     this.endVoltageLabel = new TextLabel("?V", {
       color: INK,
       height: 0.12,
       renderOrder: 4,
-      width: 0.32,
+      width: VOLTAGE_LABEL_WIDTH,
     });
 
     this.add(this.line, this.startVoltageLabel, this.endVoltageLabel);
+    this.setVoltageLabelHidden(hideVoltageLabel);
     this.setVoltage(voltage);
     this.update();
   }
@@ -67,6 +71,12 @@ export class Wire extends Shape {
 
     this.startVoltageLabel.setText(this.formatValue(this.voltage));
     this.endVoltageLabel.setText(this.formatValue(this.voltage));
+  }
+
+  setVoltageLabelHidden(isHidden) {
+    this.hideVoltageLabel = isHidden;
+    this.startVoltageLabel.visible = !isHidden;
+    this.endVoltageLabel.visible = !isHidden;
   }
 
   getRoutePoints() {
@@ -112,7 +122,7 @@ export class Wire extends Shape {
   }
 
   updateVoltageLabels(routePoints) {
-    if (routePoints.length < 2) {
+    if (this.hideVoltageLabel || routePoints.length < 2) {
       return;
     }
 

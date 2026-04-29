@@ -13,7 +13,7 @@ export function formatVoltage(value) {
     return "? V";
   }
 
-  return `${value.toFixed(2)} V`;
+  return `${value.toFixed(3)} V`;
 }
 
 export function isKnownVoltage(value) {

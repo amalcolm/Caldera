@@ -1,5 +1,6 @@
 import { COMPONENT_BLUE, COMPONENT_STROKE_WIDTH, makeLine, makeLineLoop } from "../drawing.js";
 import { SUPPLY_VOLTAGE, clampVoltage, isKnownVoltage } from "../voltage.js";
+import { addPowerRailMarkers } from "./PowerRailMarkers.js";
 import { Shape } from "./Shape.js";
 import { TextLabel } from "./TextLabel.js";
 
@@ -9,8 +10,9 @@ export class TIA extends Shape {
     hasMultiplierInput = false,
     multiplier = 1,
     position = [0, 0, 0],
+    scale = 1,
   } = {}) {
-    super({ name: "TIA", position });
+    super({ name: "TIA", position, scale });
 
     const height = 2.0;
     const width = height * Math.sqrt(3) / 2;
@@ -50,6 +52,11 @@ export class TIA extends Shape {
       height: 0.18,
       position: [0.02, 0, 0],
       width: 0.48,
+    });
+    this.powerRailMarkers = addPowerRailMarkers(this, {
+      bottomY: -height / 4,
+      color,
+      topY: height / 4,
     });
     this.add(this.multiplierLabel);
   }

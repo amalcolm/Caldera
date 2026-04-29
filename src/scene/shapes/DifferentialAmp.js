@@ -1,5 +1,6 @@
 import { COMPONENT_BLUE, COMPONENT_STROKE_WIDTH, makeLine, makeLineLoop } from "../drawing.js";
 import { clampVoltage, isKnownVoltage } from "../voltage.js";
+import { addPowerRailMarkers } from "./PowerRailMarkers.js";
 import { RESISTOR_LEAD_HALF_WIDTH, Resistor } from "./Resistor.js";
 import { Shape } from "./Shape.js";
 import { Slider, formatSliderValue } from "./Slider.js";
@@ -14,9 +15,10 @@ export class DifferentialAmp extends Shape {
     hasMultiplierInput = false,
     multiplier = 1,
     position = [0, 0, 0],
+    scale = 1,
     sourceResistance = "1.0K",
   } = {}) {
-    super({ name: "DifferentialAmp", position });
+    super({ name: "DifferentialAmp", position, scale });
 
     const height = 2.0;
     const width = height * Math.sqrt(3) / 2;
@@ -91,6 +93,7 @@ export class DifferentialAmp extends Shape {
     this.feedbackControlWire = new Wire({
       formatValue: formatSliderValue,
       from: this.feedbackSlider.port("output"),
+      hideVoltageLabel: true,
       route: verticalThenHorizontalRoute,
       to: this.variableResistor.port("topInput"),
     });
@@ -102,6 +105,7 @@ export class DifferentialAmp extends Shape {
     });
     this.feedbackJoinWire = new Wire({
       from: this.feedbackResistor.port("input"),
+      hideVoltageLabel: true,
       propagateVoltage: false,
       to: this.variableResistor.port("output"),
     });
@@ -135,6 +139,11 @@ export class DifferentialAmp extends Shape {
       height: 0.18,
       position: [0.02, 0, 0],
       width: 0.48,
+    });
+    this.powerRailMarkers = addPowerRailMarkers(this, {
+      bottomY: -height / 4,
+      color,
+      topY: height / 4,
     });
     this.add(
       this.sourceResistor,

@@ -9,9 +9,10 @@ export class VoltageSource extends Shape {
     label = "3.3 V",
     outputDirection = [1, 0, 0],
     position = [0, 0, 0],
+    scale = 1,
     voltage = SUPPLY_VOLTAGE,
   } = {}) {
-    super({ name: "VoltageSource", position });
+    super({ name: "VoltageSource", position, scale });
 
     const radius = 0.14;
     const [outputX, outputY] = outputDirection;

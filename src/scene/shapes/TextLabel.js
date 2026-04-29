@@ -15,9 +15,11 @@ export class TextLabel extends THREE.Sprite {
     );
 
     this.color = color;
+    this.width = width;
+    this.height = height;
     this.text = text;
     this.position.fromArray(position);
-    this.scale.set(width, height, 1);
+    this.updateScale(texture);
     this.renderOrder = renderOrder;
   }
 
@@ -29,7 +31,12 @@ export class TextLabel extends THREE.Sprite {
     this.text = text;
     this.material.map.dispose();
     this.material.map = createTextTexture(text, this.color);
+    this.updateScale(this.material.map);
     this.material.needsUpdate = true;
+  }
+
+  updateScale(texture) {
+    this.scale.set(getTextureWidth(texture, this.width, this.height), this.height, 1);
   }
 }
 
@@ -54,4 +61,14 @@ function createTextTexture(text, color) {
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
   return texture;
+}
+
+function getTextureWidth(texture, maxWidth, height) {
+  const image = texture.image;
+
+  if (!image?.height) {
+    return maxWidth;
+  }
+
+  return Math.min(maxWidth, height * image.width / image.height);
 }

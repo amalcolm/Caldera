@@ -4,8 +4,15 @@ import { Shape } from "./Shape.js";
 import { TextLabel } from "./TextLabel.js";
 
 export class GroundSymbol extends Shape {
-  constructor({ color = COMPONENT_BLUE, position = [0, 0, 0], nodeY = 0.45, minimumConnectorLength = 0.18 } = {}) {
-    super({ name: "GroundSymbol", position });
+  constructor({
+    color = COMPONENT_BLUE,
+    labelVisible = true,
+    minimumConnectorLength = 0.18,
+    nodeY = 0.45,
+    position = [0, 0, 0],
+    scale = 1,
+  } = {}) {
+    super({ name: "GroundSymbol", position, scale });
 
     this.color = color;
     this.connectorBaseY = 0.10;
@@ -23,7 +30,9 @@ export class GroundSymbol extends Shape {
     this.add(makeLine([[-0.18,  0.10], [0.18,  0.10]], { color, width: COMPONENT_STROKE_WIDTH }));
     this.add(makeLine([[-0.13,  0.00], [0.13,  0.00]], { color, width: COMPONENT_STROKE_WIDTH }));
     this.add(makeLine([[-0.08, -0.10], [0.08, -0.10]], { color, width: COMPONENT_STROKE_WIDTH }));
-    this.add(new TextLabel("GND", { color, position: [0, -0.32, 0], width: 0.48, height: 0.22 }));
+    this.label = new TextLabel("GND", { color, position: [0, -0.32, 0], width: 0.48, height: 0.22 });
+    this.label.visible = labelVisible;
+    this.add(this.label);
   }
 
   setNodeWorldY(worldY) {
