@@ -7,6 +7,7 @@ import { PhotoDiode } from "./shapes/PhotoDiode.js";
 import { PoweredDigipot } from "./shapes/PoweredDigipot.js";
 import { Slider, formatMultiplier } from "./shapes/Slider.js";
 import { ThreePot } from "./shapes/ThreePot.js";
+import { VoltageReadout } from "./shapes/VoltageReadout.js";
 import { Wire } from "./shapes/Wire.js";
 import { clampVoltage } from "./voltage.js";
 
@@ -249,7 +250,7 @@ export class CircuitScene {
     const aspect = width / height;
     const minimumViewHeight = 10.2;
 
-    let viewWidth = 14.2;
+    let viewWidth = 12;
     let viewHeight = viewWidth / aspect;
 
     if (viewHeight < minimumViewHeight) {
@@ -306,6 +307,7 @@ export class CircuitScene {
       position: [3.0, 0.0, 0],
       sourceResistance: "1.0K",
     }));
+    const outputReadout = this.add(new VoltageReadout({ position: [5.2, 0.0, 0] }));
 /*  const ampMultiplierSlider = this.add(new Slider({
       label: "gain",
       leftValue: 0,
@@ -334,6 +336,11 @@ export class CircuitScene {
     }));
 //  this.add(new Wire({ from: ampMultiplierSlider.port("output"), to: differentialAmp.port("multiplier"), formatValue: formatMultiplier    }));
     this.add(new Wire({ from: offsetPot.port("output"), to: differentialAmp.port("nonInverting") }));
+    this.add(new Wire({
+      from: differentialAmp.port("output"),
+      hideVoltageLabel: true,
+      to: outputReadout.port("input"),
+    }));
   }
 
   alignGroundNode(ground, port) {

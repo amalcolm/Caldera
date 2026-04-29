@@ -1,5 +1,5 @@
 import { COMPONENT_BLUE, COMPONENT_STROKE_WIDTH, makeLine, makeLineLoop } from "../drawing.js";
-import { clampVoltage, isKnownVoltage } from "../voltage.js";
+import { SUPPLY_VOLTAGE, clampVoltage, isKnownVoltage } from "../voltage.js";
 import { addPowerRailMarkers } from "./PowerRailMarkers.js";
 import { RESISTOR_LEAD_HALF_WIDTH, Resistor } from "./Resistor.js";
 import { Shape } from "./Shape.js";
@@ -7,6 +7,8 @@ import { Slider, formatSliderValue } from "./Slider.js";
 import { TextLabel } from "./TextLabel.js";
 import { VariableResistor } from "./VariableResistor.js";
 import { STANDARD_OUTPUT_LEAD_LENGTH, Wire } from "./Wire.js";
+
+const SOURCE_RESISTOR_CURRENT = 100e-6;
 
 export class DifferentialAmp extends Shape {
   constructor({
@@ -178,15 +180,19 @@ export class DifferentialAmp extends Shape {
 
     const nonInvertingVoltage = this.nonInvertingPort.voltage;
     const sourceVoltage = this.sourceResistor.port("input").voltage;
+    const sourceResistorDrop = this.getSourceResistorDrop();
+    const invertingVoltage = isKnownVoltage(sourceVoltage) && isKnownVoltage(sourceResistorDrop)
+      ? sourceVoltage - sourceResistorDrop
+      : null;
     const secondaryMultiplier = this.multiplierInputPort?.voltage ?? 1;
     const effectiveMultiplier = this.getEffectiveMultiplier(secondaryMultiplier);
 
-    this.setSummingNodeVoltage(nonInvertingVoltage);
+    this.setSummingNodeVoltage(invertingVoltage);
     this.updateMultiplierLabel(secondaryMultiplier);
 
     if (
       !isKnownVoltage(nonInvertingVoltage)
-      || !isKnownVoltage(sourceVoltage)
+      || !isKnownVoltage(invertingVoltage)
       || !isKnownVoltage(effectiveMultiplier)
     ) {
       this.outputPort.voltage = null;
@@ -195,7 +201,7 @@ export class DifferentialAmp extends Shape {
     }
 
     this.outputPort.voltage = clampVoltage(
-      nonInvertingVoltage + (nonInvertingVoltage - sourceVoltage) * effectiveMultiplier,
+      SUPPLY_VOLTAGE / 2 + (nonInvertingVoltage - invertingVoltage) * effectiveMultiplier,
     );
     this.updateFeedbackVoltage();
   }
@@ -276,6 +282,16 @@ export class DifferentialAmp extends Shape {
     }
 
     return feedbackResistance / sourceResistance;
+  }
+
+  getSourceResistorDrop() {
+    const sourceResistance = this.sourceResistor.ohms;
+
+    if (!Number.isFinite(sourceResistance)) {
+      return null;
+    }
+
+    return sourceResistance * SOURCE_RESISTOR_CURRENT;
   }
 
   getFeedbackResistance() {

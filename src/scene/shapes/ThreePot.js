@@ -8,8 +8,8 @@ export class ThreePot extends Shape {
   constructor({ color = COMPONENT_BLUE, position = [0, 0, 0] } = {}) {
     super({ name: "ThreePot", position });
 
-    this.topPot = new PoweredDigipot({ color, label: "top", position: [0, 2.1, 0] });
-    this.botPot = new PoweredDigipot({ color, label: "bot", position: [0, -2.1, 0] });
+    this.topPot = new PoweredDigipot({ color, groundResistance: null, label: "top", position: [0, 2.1, 0] });
+    this.botPot = new PoweredDigipot({ color, groundResistance: null, label: "bot", position: [0, -2.1, 0] });
     this.midPot = new Digipot({ color, label: "mid", position: [1.4, 0, 0] });
 
     this.topDigipot = this.topPot.digipot;

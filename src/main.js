@@ -14,8 +14,8 @@ document.querySelector("#app").innerHTML = `
       type="number"
       min="0"
       max="${SUPPLY_VOLTAGE}"
-      step="0.01"
-      value="${formatInputValue(storedSettings?.photodiodeVoltage ?? 1.65)}"
+      step="0.001"
+      value="${formatInputValue(storedSettings?.photodiodeVoltage ?? 0.444)}"
     />
     <span>V</span>
   </div>
@@ -59,5 +59,5 @@ function saveStoredSettings(settings) {
 function formatInputValue(value) {
   const number = Number(value);
 
-  return Number.isFinite(number) ? String(number) : "1.65";
+  return Number.isFinite(number) ? String(number) : "0.444";
 }
