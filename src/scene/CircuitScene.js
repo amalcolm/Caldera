@@ -301,10 +301,10 @@ export class CircuitScene {
     const tia = this.add(new TIA({ multiplier: 200, position: [-1.6, 0.605, 0] }));
 
     const offsetPot = this.add(new PoweredDigipot({
-      groundResistance: "79K6",
+      groundResistance: "72K7",
       label: "offset",
       position: [0.5, -2.1, 0],
-      supplyResistance: "80K6",
+      supplyResistance: "68K",
     }));
     const differentialAmp = this.add(new DifferentialAmp({
       feedbackResistance: "10.0K",
@@ -313,22 +313,13 @@ export class CircuitScene {
       sourceResistance: "1.0K",
     }));
     const outputReadout = this.add(new VoltageReadout({ position: [5.2, 0.0, 0] }));
-/*  const ampMultiplierSlider = this.add(new Slider({
-      label: "gain",
-      leftValue: 0,
-      outputOffset: 1,
-      position: [2.4, 1.9, 0],
-      rightValue: 255,
-      value: 128,
-    }));
-*/
+
     this.controlById = new Map([
       ["top", threePot.topDigipot],
       ["bot", threePot.botDigipot],
       ["mid", threePot.midDigipot],
       ["offset", offsetPot.digipot],
       ["feedback", differentialAmp.feedbackSlider],
-//      ["gain", ampMultiplierSlider],
     ]);
     this.dragControls = Array.from(this.controlById.values());
 
@@ -339,7 +330,6 @@ export class CircuitScene {
       singleVoltageLabel: "end",
       to: differentialAmp.port("inverting"),
     }));
-//  this.add(new Wire({ from: ampMultiplierSlider.port("output"), to: differentialAmp.port("multiplier"), formatValue: formatMultiplier    }));
     this.add(new Wire({ from: offsetPot.port("output"), to: differentialAmp.port("nonInverting") }));
     this.add(new Wire({
       from: differentialAmp.port("output"),
