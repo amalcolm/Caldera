@@ -286,7 +286,7 @@ export class CircuitScene {
   }
 
   setupCircuit() {
-    const photoDiode = this.add(new PhotoDiode({ position: [-4.8, 5.2, 0] }));
+    const photoDiode = this.add(new PhotoDiode({ position: [-4.8, 4.2, 0] }));
     this.photoDiode = photoDiode;
 
     const threePot = this.add(new ThreePot({ position: [-4.8, -1.0, 0] }));
@@ -300,7 +300,12 @@ export class CircuitScene {
     
     const tia = this.add(new TIA({ multiplier: 200, position: [-1.6, 0.605, 0] }));
 
-    const offsetPot = this.add(new PoweredDigipot({ label: "offset", position: [0.5, -2.1, 0] }));
+    const offsetPot = this.add(new PoweredDigipot({
+      groundResistance: "79K6",
+      label: "offset",
+      position: [0.5, -2.1, 0],
+      supplyResistance: "80K6",
+    }));
     const differentialAmp = this.add(new DifferentialAmp({
       feedbackResistance: "10.0K",
       multiplier: 1,

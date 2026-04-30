@@ -33,10 +33,10 @@ export class DifferentialAmp extends Shape {
     const multiplierInputStartY = height / 4;
     const multiplierInputEndY = height / 2 + 0.16;
     const leadLength = STANDARD_OUTPUT_LEAD_LENGTH;
-    const rightLeadLength = leadLength * 2;
+    const rightLeadLength = leadLength;
     const sourceResistorX = leftX - leadLength * 2 - RESISTOR_LEAD_HALF_WIDTH;
-    const feedbackResistorX = leftX + leadLength*2;
-    const variableResistorX = rightX + rightLeadLength - RESISTOR_LEAD_HALF_WIDTH;
+    const feedbackResistorX = leftX + leadLength;
+    const variableResistorX = rightX  - RESISTOR_LEAD_HALF_WIDTH;
     const variableResistorY = height / 2 + 0.78;
     const feedbackSliderY = variableResistorY + 1.36;
     const verticalThenHorizontalRoute = ({ end, start }) => [start, [start.x, end.y, 0], end];

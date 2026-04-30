@@ -12,13 +12,13 @@ export class VariableResistor extends Resistor {
   } = {}) {
     super({ color, inputSide, position, value });
 
-    const controlTopY = 0.72;
-    const controlBodyY = 0.22;
+    const controlTopY = 0.40;
+    const controlBodyY = 0.12;
 
     this.name = "VariableResistor";
     this.maxResistanceOhms = parseResistance(value);
     this.maxWiperValue = maxWiperValue;
-    this.valueLabel.position.set(0, -0.32, 0);
+    this.valueLabel.position.set(0, -0.22, 0);
     this.topInputPort = this.addPort("topInput", [0, controlTopY], {
       direction: [0, 1, 0],
       kind: "input",

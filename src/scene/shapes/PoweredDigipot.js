@@ -1,8 +1,8 @@
 import { COMPONENT_BLUE } from "../drawing.js";
-import { SUPPLY_VOLTAGE } from "../voltage.js";
+import { SUPPLY_VOLTAGE, isKnownVoltage } from "../voltage.js";
 import { Digipot } from "./Digipot.js";
 import { GroundSymbol } from "./GroundSymbol.js";
-import { Resistor } from "./Resistor.js";
+import { Resistor, parseResistance } from "./Resistor.js";
 import { Shape } from "./Shape.js";
 import { VoltageSource } from "./VoltageSource.js";
 import { STANDARD_OUTPUT_LEAD_LENGTH, Wire } from "./Wire.js";
@@ -10,15 +10,16 @@ import { STANDARD_OUTPUT_LEAD_LENGTH, Wire } from "./Wire.js";
 const RAIL_CENTER_X = -0.18;
 const RAIL_WITH_RESISTOR_SOURCE_X = 0.14;
 const RAIL_RESISTOR_X = -0.38;
-const RAIL_RESISTOR_SCALE = 0.55;
 const SUPPLY_Y = 1.28;
 const GROUND_Y = -1.55;
 const GROUND_NODE_Y = -1.10;
 const DEFAULT_RAIL_RESISTANCE = "68K";
+const DEFAULT_DIGIPOT_RESISTANCE = "5K";
 
 export class PoweredDigipot extends Shape {
   constructor({
     color = COMPONENT_BLUE,
+    digipotResistance = DEFAULT_DIGIPOT_RESISTANCE,
     groundResistance = DEFAULT_RAIL_RESISTANCE,
     label = "",
     position = [0, 0, 0],
@@ -26,6 +27,8 @@ export class PoweredDigipot extends Shape {
     voltage = SUPPLY_VOLTAGE,
   } = {}) {
     super({ name: "PoweredDigipot", position });
+
+    this.digipotOhms = parseResistance(digipotResistance);
 
     const hasSupplyResistor = isPresentResistance(supplyResistance);
     const hasGroundResistor = isPresentResistance(groundResistance);
@@ -49,6 +52,7 @@ export class PoweredDigipot extends Shape {
     });
     this.groundResistor = this.makeRailResistor({
       color,
+      labelPosition: "bottom",
       resistance: groundResistance,
       position: [RAIL_RESISTOR_X, GROUND_NODE_Y, 0],
     });
@@ -60,6 +64,7 @@ export class PoweredDigipot extends Shape {
     const shortRoute = ({ end, start }) => [start, end];
     const supplyWires = this.makeRailWires({
       from: this.supply.port("output"),
+      hideResistorOutputLabel: true,
       resistor: this.supplyResistor,
       route: leftStandoffRoute,
       shortRoute,
@@ -67,6 +72,7 @@ export class PoweredDigipot extends Shape {
     });
     const groundWires = this.makeRailWires({
       from: this.ground.port("node"),
+      hideResistorOutputLabel: true,
       resistor: this.groundResistor,
       route: leftStandoffRoute,
       shortRoute,
@@ -92,12 +98,14 @@ export class PoweredDigipot extends Shape {
   evaluateVoltage() {
     this.supply.evaluateVoltage();
     this.ground.evaluateVoltage();
-    this.evaluateRail(this.supply.port("output"), this.supplyResistor);
-    this.evaluateRail(this.ground.port("node"), this.groundResistor);
+    const terminalVoltages = this.getDigipotTerminalVoltages();
+
+    this.evaluateRail(this.supply.port("output"), this.supplyResistor, terminalVoltages.top);
+    this.evaluateRail(this.ground.port("node"), this.groundResistor, terminalVoltages.bottom);
     this.digipot.evaluateVoltage();
   }
 
-  makeRailResistor({ color, position, resistance }) {
+  makeRailResistor({ color, labelPosition = "top", position, resistance }) {
     if (!isPresentResistance(resistance)) {
       return null;
     }
@@ -105,19 +113,20 @@ export class PoweredDigipot extends Shape {
     const resistor = new Resistor({
       color,
       inputSide: "right",
+      labelPosition,
       position,
       value: resistance,
     });
-    resistor.scale.setScalar(RAIL_RESISTOR_SCALE);
 
     return resistor;
   }
 
-  makeRailWires({ from, resistor, route, shortRoute, to }) {
+  makeRailWires({ from, hideResistorOutputLabel = false, resistor, route, shortRoute, to }) {
     if (!resistor) {
       return [
         new Wire({
           from,
+          hideVoltageLabels: "start",
           route,
           to,
         }),
@@ -133,13 +142,14 @@ export class PoweredDigipot extends Shape {
       }),
       new Wire({
         from: resistor.port("output"),
+        hideVoltageLabels: hideResistorOutputLabel ? "start" : [],
         route,
         to,
       }),
     ];
   }
 
-  evaluateRail(from, resistor) {
+  evaluateRail(from, resistor, resistorOutputVoltage) {
     const wire = this.internalWires.find((candidate) => candidate.from === from);
 
     wire?.setVoltage(from.voltage);
@@ -148,11 +158,29 @@ export class PoweredDigipot extends Shape {
       return;
     }
 
-    resistor.evaluateVoltage();
+    resistor.port("output").voltage = resistorOutputVoltage;
 
     this.internalWires
       .find((candidate) => candidate.from === resistor.port("output"))
-      ?.setVoltage(resistor.port("output").voltage);
+      ?.setVoltage(resistorOutputVoltage);
+  }
+
+  getDigipotTerminalVoltages() {
+    const supplyVoltage = this.supply.port("output").voltage;
+    const groundVoltage = this.ground.port("node").voltage;
+    const supplyResistance = this.supplyResistor?.ohms ?? 0;
+    const groundResistance = this.groundResistor?.ohms ?? 0;
+    const totalResistance = supplyResistance + this.digipotOhms + groundResistance;
+
+    if (!isKnownVoltage(supplyVoltage) || !isKnownVoltage(groundVoltage) || totalResistance <= 0) {
+      return { bottom: null, top: null };
+    }
+
+    const current = (supplyVoltage - groundVoltage) / totalResistance;
+    const bottom = groundVoltage + current * groundResistance;
+    const top = bottom + current * this.digipotOhms;
+
+    return { bottom, top };
   }
 }
 

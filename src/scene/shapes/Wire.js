@@ -12,6 +12,7 @@ export class Wire extends Shape {
     from,
     formatValue = formatVoltage,
     hideVoltageLabel = false,
+    hideVoltageLabels = [],
     name = "Wire",
     propagateVoltage = true,
     route = null,
@@ -24,7 +25,8 @@ export class Wire extends Shape {
 
     this.formatValue = formatValue;
     this.from = from;
-    this.hideVoltageLabel = hideVoltageLabel;
+    this.hiddenVoltageLabels = normaliseHiddenVoltageLabels(hideVoltageLabel ? "both" : hideVoltageLabels);
+    this.hideVoltageLabel = this.hiddenVoltageLabels.size === 2;
     this.propagateVoltage = propagateVoltage;
     this.route = route;
     this.singleVoltageLabel = singleVoltageLabel;
@@ -46,7 +48,7 @@ export class Wire extends Shape {
     });
 
     this.add(this.line, this.startVoltageLabel, this.endVoltageLabel);
-    this.setVoltageLabelHidden(hideVoltageLabel);
+    this.applyVoltageLabelVisibility();
     this.setVoltage(voltage);
     this.update();
   }
@@ -74,9 +76,18 @@ export class Wire extends Shape {
   }
 
   setVoltageLabelHidden(isHidden) {
-    this.hideVoltageLabel = isHidden;
-    this.startVoltageLabel.visible = !isHidden;
-    this.endVoltageLabel.visible = !isHidden;
+    this.setHiddenVoltageLabels(isHidden ? "both" : []);
+  }
+
+  setHiddenVoltageLabels(hiddenLabels) {
+    this.hiddenVoltageLabels = normaliseHiddenVoltageLabels(hiddenLabels);
+    this.hideVoltageLabel = this.hiddenVoltageLabels.size === 2;
+    this.applyVoltageLabelVisibility();
+  }
+
+  applyVoltageLabelVisibility() {
+    this.startVoltageLabel.visible = !this.hiddenVoltageLabels.has("start");
+    this.endVoltageLabel.visible = !this.hiddenVoltageLabels.has("end");
   }
 
   getRoutePoints() {
@@ -136,7 +147,7 @@ export class Wire extends Shape {
     const sameY = Math.abs(this.startVoltageLabel.position.y - this.endVoltageLabel.position.y) < 0.02;
     const sameX = Math.abs(this.startVoltageLabel.position.x - this.endVoltageLabel.position.x) < 0.02;
 
-    if (sameY && !sameX) {
+    if (this.hiddenVoltageLabels.size === 0 && sameY && !sameX) {
       if (this.singleVoltageLabel === "end") {
         this.startVoltageLabel.position.set(999, 999, 999);
       } else {
@@ -145,7 +156,7 @@ export class Wire extends Shape {
       }
     }
 
-    if (sameX && !sameY) {
+    if (this.hiddenVoltageLabels.size === 0 && sameX && !sameY) {
       if (this.singleVoltageLabel === "start") {
         this.endVoltageLabel.position.set(999, 999, 999);
       } else {
@@ -153,6 +164,8 @@ export class Wire extends Shape {
         this.endVoltageLabel.position.y = Math.min(routePoints[0].y, routePoints.at(-1).y) + 0.05;
       }
     }
+
+    this.applyVoltageLabelVisibility();
   }
 
   getVoltageLabelPosition(endpoint, point, neighbour) {
@@ -172,4 +185,17 @@ export class Wire extends Shape {
 
     return Math.abs(neighbour.y - point.y) > Math.abs(neighbour.x - point.x);
   }
+}
+
+function normaliseHiddenVoltageLabels(hiddenLabels) {
+  if (hiddenLabels === true || hiddenLabels === "both") {
+    return new Set(["start", "end"]);
+  }
+
+  if (hiddenLabels === false || hiddenLabels === null || hiddenLabels === undefined) {
+    return new Set();
+  }
+
+  const labels = Array.isArray(hiddenLabels) ? hiddenLabels : [hiddenLabels];
+  return new Set(labels.filter((label) => label === "start" || label === "end"));
 }
